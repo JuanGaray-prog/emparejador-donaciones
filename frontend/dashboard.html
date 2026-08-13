@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa de ayuda — Valle del Cauca</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --ink: #1c2b24; --paper: #f6f5f1; --line: #d8d5cc;
+    --necesidad: #b5482f; --donacion: #2f6b4f;
+    --albergue: #2d5f8a; --acopio: #9c7a1f; --colapso: #7a2f3f;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--paper); color: var(--ink); }
+  header { padding: 16px 20px 10px; border-bottom: 1px solid var(--line); background: #fff; }
+  header h1 { margin: 0 0 4px; font-size: 1.25rem; }
+  header p { margin: 0; font-size: 0.85rem; color: #5c6b62; }
+
+  .layout { display: grid; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { .layout { grid-template-columns: 2fr 1fr; } }
+
+  #mapa { height: 60vh; min-height: 380px; }
+  @media (min-width: 900px) { #mapa { height: calc(100vh - 74px); } }
+
+  .panel { padding: 16px; border-left: 1px solid var(--line); background: #fff; overflow-y: auto; }
+  @media (max-width: 899px) { .panel { border-left: none; border-top: 1px solid var(--line); } }
+
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 18px; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .stat .n { font-size: 1.3rem; font-weight: 700; }
+  .stat .l { font-size: 0.72rem; color: #5c6b62; text-transform: uppercase; letter-spacing: 0.03em; }
+
+  h2 { font-size: 0.9rem; margin: 18px 0 8px; }
+
+  form { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  form label { display: block; font-size: 0.78rem; font-weight: 600; margin: 8px 0 4px; }
+  form select, form input, form textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 0.88rem; font-family: inherit;
+  }
+  form button {
+    width: 100%; margin-top: 12px; padding: 10px; border: none; border-radius: 6px;
+    background: var(--ink); color: #fff; font-weight: 700; cursor: pointer; font-size: 0.9rem;
+  }
+  .hint { font-size: 0.75rem; color: #8a8f89; margin-top: 6px; }
+
+  .match { border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 8px; font-size: 0.85rem; }
+  .match .cand { padding: 4px 0; border-top: 1px dashed var(--line); }
+  .badge {
+    display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; color: #fff;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mapa de ayuda — terremoto Valle del Cauca</h1>
+  <p>Necesidades, donaciones, albergues, puntos de acopio y lugares colapsados, actualizados en vivo.</p>
+</header>
+
+<div class="layout">
+  <div id="mapa"></div>
+
+  <div class="panel">
+    <div class="stats" id="stats"></div>
+
+    <h2>Registrar un punto</h2>
+    <form id="formulario">
+      <label>Tipo de punto</label>
+      <select id="tipo">
+        <option value="necesidad">Necesidad</option>
+        <option value="donacion">Donación</option>
+        <option value="albergue">Albergue</option>
+        <option value="acopio">Punto de acopio</option>
+        <option value="colapso">Lugar colapsado</option>
+      </select>
+
+      <label>Nombre / referencia</label>
+      <input id="nombre" required placeholder="Ej: Vereda La Esperanza">
+
+      <label>Categoría</label>
+      <select id="categoria">
+        <option>Agua</option><option>Alimentos</option><option>Ropa / cobijas</option>
+        <option>Medicamentos</option><option>Refugio</option><option>Transporte</option>
+        <option>Rescate</option><option>General</option>
+      </select>
+
+      <label>Detalle</label>
+      <textarea id="detalle" rows="2" placeholder="Cantidad, urgencia, capacidad, etc."></textarea>
+
+      <label>Contacto</label>
+      <input id="contacto" placeholder="Teléfono / WhatsApp">
+
+      <p class="hint" id="pinHint">Toca el mapa para marcar la ubicación antes de enviar.</p>
+      <button type="submit">Registrar punto</button>
+    </form>
+
+    <h2>Emparejamientos sugeridos</h2>
+    <div id="matches"></div>
+  </div>
+</div>
+
+<script>
+const API = ""; // mismo origen; cambia si el backend queda en otra URL
+
+const COLORES = { necesidad: "#b5482f", donacion: "#2f6b4f", albergue: "#2d5f8a", acopio: "#9c7a1f", colapso: "#7a2f3f" };
+const ETIQUETAS = { necesidad: "Necesidad", donacion: "Donación", albergue: "Albergue", acopio: "Acopio", colapso: "Colapso" };
+
+const mapa = L.map("mapa").setView([3.4516, -76.5320], 10);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "&copy; OpenStreetMap contributors", maxZoom: 19
+}).addTo(mapa);
+
+let capaMarcadores = L.layerGroup().addTo(mapa);
+let pinNuevo = null;
+let coordsNuevo = null;
+
+mapa.on("click", (e) => {
+  coordsNuevo = e.latlng;
+  if (pinNuevo) pinNuevo.setLatLng(coordsNuevo);
+  else pinNuevo = L.marker(coordsNuevo, { draggable: true }).addTo(mapa);
+  document.getElementById("pinHint").textContent =
+    `Punto marcado: ${coordsNuevo.lat.toFixed(5)}, ${coordsNuevo.lng.toFixed(5)}`;
+});
+
+function iconoColor(tipo) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:16px;height:16px;border-radius:50%;background:${COLORES[tipo]};border:2px solid #fff;box-shadow:0 0 2px rgba(0,0,0,.4)"></div>`,
+    iconSize: [16, 16],
+  });
+}
+
+async function cargarPuntos() {
+  const res = await fetch(`${API}/api/puntos`);
+  const puntos = await res.json();
+
+  capaMarcadores.clearLayers();
+  for (const p of puntos) {
+    const marcador = L.marker([p.lat, p.lng], { icon: iconoColor(p.tipo) });
+    const puedeAbastecer = ["necesidad", "donacion"].includes(p.tipo) && p.estado === "pendiente";
+    marcador.bindPopup(`
+      <b>${ETIQUETAS[p.tipo]}</b> — ${p.nombre}<br>
+      ${p.categoria} · ${p.estado}<br>
+      ${p.detalle ? p.detalle + "<br>" : ""}
+      ${p.contacto ? "Contacto: " + p.contacto + "<br>" : ""}
+      ${puedeAbastecer ? `<button onclick="marcarAbastecido('${p.id}')">Marcar abastecido</button>` : ""}
+    `);
+    marcador.addTo(capaMarcadores);
+  }
+}
+
+async function marcarAbastecido(id) {
+  await fetch(`${API}/api/puntos/${id}/estado`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ estado: "abastecido" }),
+  });
+  cargarPuntos();
+  cargarStats();
+}
+window.marcarAbastecido = marcarAbastecido;
+
+async function cargarStats() {
+  const res = await fetch(`${API}/api/estadisticas`);
+  const stats = await res.json();
+  const el = document.getElementById("stats");
+  el.innerHTML = Object.entries(stats).map(([tipo, s]) => `
+    <div class="stat">
+      <div class="n" style="color:${COLORES[tipo]}">${s.total}</div>
+      <div class="l">${ETIQUETAS[tipo]}${s.abastecido !== undefined && s.total ? ` · ${s.abastecido} abastecidas` : ""}</div>
+    </div>
+  `).join("");
+}
+
+async function cargarMatches() {
+  const res = await fetch(`${API}/api/emparejamientos`);
+  const data = await res.json();
+  const el = document.getElementById("matches");
+  if (!data.length) { el.innerHTML = `<p class="hint">No hay necesidades pendientes por ahora.</p>`; return; }
+
+  el.innerHTML = data.map(m => `
+    <div class="match">
+      <span class="badge" style="background:${COLORES.necesidad}">Necesidad</span>
+      <b>${m.necesidad_nombre}</b> (${m.categoria})
+      ${m.candidatas.length
+        ? m.candidatas.slice(0, 3).map(c => `<div class="cand">↳ ${c.nombre} — ${c.distancia_km} km — ${c.contacto || "sin contacto"}</div>`).join("")
+        : `<div class="cand">Sin donaciones disponibles de esta categoría aún.</div>`}
+    </div>
+  `).join("");
+}
+
+document.getElementById("formulario").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!coordsNuevo) { alert("Marca la ubicación en el mapa primero."); return; }
+
+  await fetch(`${API}/api/puntos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      tipo: document.getElementById("tipo").value,
+      nombre: document.getElementById("nombre").value,
+      categoria: document.getElementById("categoria").value,
+      detalle: document.getElementById("detalle").value,
+      contacto: document.getElementById("contacto").value,
+      lat: coordsNuevo.lat,
+      lng: coordsNuevo.lng,
+    }),
+  });
+
+  e.target.reset();
+  if (pinNuevo) { mapa.removeLayer(pinNuevo); pinNuevo = null; coordsNuevo = null; }
+  document.getElementById("pinHint").textContent = "Toca el mapa para marcar la ubicación antes de enviar.";
+  cargarPuntos(); cargarStats(); cargarMatches();
+});
+
+// Actualización constante: recarga cada 15s para reflejar cambios de otros usuarios
+cargarPuntos(); cargarStats(); cargarMatches();
+setInterval(() => { cargarPuntos(); cargarStats(); cargarMatches(); }, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+  "puntos": [
+    {
+      "id": "1ae96bcd-2586-4283-8165-f4347ba3c595",
+      "tipo": "necesidad",
+      "nombre": "Vereda Test",
+      "categoria": "Agua",
+      "detalle": "",
+      "contacto": "3001234567",
+      "lat": 3.45,
+      "lng": -76.53,
+      "estado": "pendiente",
+      "creado_en": "2026-08-13T21:31:28.525Z"
+    },
+    {
+      "id": "5705748d-cb4d-4875-acbd-4e5e9b617ca4",
+      "tipo": "donacion",
+      "nombre": "Bodega Norte",
+      "categoria": "Agua",
+      "detalle": "",
+      "contacto": "3007654321",
+      "lat": 3.46,
+      "lng": -76.52,
+      "estado": "pendiente",
+      "creado_en": "2026-08-13T21:31:28.542Z"
+    },
+    {
+      "id": "6692ad0d-25e6-42ac-a88f-2a52b392b107",
+      "tipo": "necesidad",
+      "nombre": "Vereda Test",
+      "categoria": "Agua",
+      "detalle": "",
+      "contacto": "3001234567",
+      "lat": 3.45,
+      "lng": -76.53,
+      "estado": "pendiente",
+      "creado_en": "2026-08-13T21:36:36.319Z"
+    },
+    {
+      "id": "08cf9114-58c9-462c-8b23-c4560c5a986e",
+      "tipo": "donacion",
+      "nombre": "Bodega Norte",
+      "categoria": "Agua",
+      "detalle": "",
+      "contacto": "3007654321",
+      "lat": 3.46,
+      "lng": -76.52,
+      "estado": "pendiente",
+      "creado_en": "2026-08-13T21:36:36.335Z"
+    },
+    {
+      "id": "2d8a15d0-349c-477c-8c74-5f776e7b3e15",
+      "tipo": "albergue",
+      "nombre": "Coliseo Municipal",
+      "categoria": "Refugio",
+      "detalle": "",
+      "contacto": "",
+      "lat": 3.44,
+      "lng": -76.54,
+      "estado": "activo",
+      "creado_en": "2026-08-13T21:36:36.350Z"
+    }
+  ]
+}
